@@ -11,9 +11,9 @@ export async function POST(req: Request) {
       });
     }
 
-    // ใช้ v1 API แบบเสถียร รองรับโมเดล flash
+    // เรียกใช้โมเดล gemini-1.5-flash ผ่าน v1beta
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -25,37 +25,31 @@ export async function POST(req: Request) {
               role: 'user',
               parts: [{ text: message }]
             }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1000,
-          }
+          ]
         })
       }
     );
 
     const data = await response.json();
 
-    // หาก Google แจ้ง Error (เช่น Key ผิด หรือ Quota หมด)
     if (data.error) {
       return NextResponse.json({ 
-        reply: `❌ Google API Error (${data.error.code || 'Unknown'}): ${data.error.message}` 
+        reply: `❌ Google API Error (${data.error.code}): ${data.error.message}` 
       });
     }
 
-    // ดึงข้อความตอบกลับ
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!reply) {
       return NextResponse.json({ 
-        reply: `⚠️ ไม่พบข้อความตอบกลับ (Status: ${JSON.stringify(data)})` 
+        reply: '⚠️ ไม่พบข้อความตอบกลับจาก AI' 
       });
     }
 
     return NextResponse.json({ reply });
   } catch (error: any) {
     return NextResponse.json({ 
-      reply: `❌ Server Error: ${error?.message || 'การเชื่อมต่อผิดพลาด'}` 
+      reply: `❌ Server Error: ${error?.message || 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว'}` 
     });
   }
 }
