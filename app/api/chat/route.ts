@@ -7,13 +7,13 @@ export async function POST(req: Request) {
 
     if (!apiKey) {
       return NextResponse.json({ 
-        reply: 'ข้อผิดพลาด: ยังไม่ได้ตั้งค่า GEMINI_API_KEY ใน Environment Variables ของ Vercel' 
+        reply: '❌ ไม่พบ GEMINI_API_KEY: กรุณาเพิ่ม Key ใน Environment Variables ของ Vercel' 
       });
     }
 
-    // เรียกใช้งาน Google Gemini API
+    // ใช้ v1 API แบบเสถียร รองรับโมเดล flash
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -22,33 +22,40 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           contents: [
             {
+              role: 'user',
               parts: [{ text: message }]
             }
-          ]
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000,
+          }
         })
       }
     );
 
     const data = await response.json();
 
+    // หาก Google แจ้ง Error (เช่น Key ผิด หรือ Quota หมด)
     if (data.error) {
       return NextResponse.json({ 
-        reply: `Gemini API Error: ${data.error.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ'}` 
+        reply: `❌ Google API Error (${data.error.code || 'Unknown'}): ${data.error.message}` 
       });
     }
 
+    // ดึงข้อความตอบกลับ
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!reply) {
       return NextResponse.json({ 
-        reply: 'AI ไม่สามารถตอบคำถามนี้ได้ (อาจติดตัวกรองความปลอดภัยของระบบ)' 
+        reply: `⚠️ ไม่พบข้อความตอบกลับ (Status: ${JSON.stringify(data)})` 
       });
     }
 
     return NextResponse.json({ reply });
   } catch (error: any) {
     return NextResponse.json({ 
-      reply: `Server Error: ${error?.message || 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว'}` 
+      reply: `❌ Server Error: ${error?.message || 'การเชื่อมต่อผิดพลาด'}` 
     });
   }
 }
