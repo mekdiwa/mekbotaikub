@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { GoogleGenAI } from '@google/genai';
 
 export async function POST(req: Request) {
   try {
@@ -6,50 +7,24 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ 
-        reply: '❌ ไม่พบ GEMINI_API_KEY: กรุณาเพิ่ม Key ใน Environment Variables ของ Vercel' 
+      return NextResponse.json({
+        reply: '❌ ไม่พบ GEMINI_API_KEY ในระบบ Vercel Environment Variables'
       });
     }
 
-    // เรียกใช้โมเดล gemini-1.5-flash ผ่าน v1beta
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: message }]
-            }
-          ]
-        })
-      }
-    );
+    const ai = new GoogleGenAI({ apiKey });
 
-    const data = await response.json();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: message,
+    });
 
-    if (data.error) {
-      return NextResponse.json({ 
-        reply: `❌ Google API Error (${data.error.code}): ${data.error.message}` 
-      });
-    }
-
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!reply) {
-      return NextResponse.json({ 
-        reply: '⚠️ ไม่พบข้อความตอบกลับจาก AI' 
-      });
-    }
+    const reply = response.text || 'AI ไม่มีข้อความตอบกลับ';
 
     return NextResponse.json({ reply });
   } catch (error: any) {
-    return NextResponse.json({ 
-      reply: `❌ Server Error: ${error?.message || 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว'}` 
+    return NextResponse.json({
+      reply: `❌ เกิดข้อผิดพลาด: ${error?.message || 'ไม่สามารถติดต่อ AI ได้'}`
     });
   }
 }
