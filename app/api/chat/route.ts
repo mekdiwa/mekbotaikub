@@ -13,16 +13,40 @@ export async function POST(req: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const result = await model.generateContent(message);
-    const response = await result.response;
-    const reply = response.text();
+    // วนหาโมเดลที่ใช้งานได้อัตโนมัติ
+    const modelCandidates = [
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-pro'
+    ];
+
+    let reply = '';
+    let lastError = '';
+
+    for (const modelName of modelCandidates) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(message);
+        const response = await result.response;
+        reply = response.text();
+        if (reply) break;
+      } catch (err: any) {
+        lastError = err.message;
+        continue;
+      }
+    }
+
+    if (!reply) {
+      return NextResponse.json({
+        reply: `❌ Google API Error: ${lastError}\n\n👉 กรุณาสร้าง API Key ใหม่ที่ aistudio.google.com/app/apikey แล้วนำไปใส่ใน Vercel`
+      });
+    }
 
     return NextResponse.json({ reply });
   } catch (error: any) {
     return NextResponse.json({
-      reply: `❌ เกิดข้อผิดพลาด: ${error?.message || 'ไม่สามารถติดต่อ AI ได้'}`
+      reply: `❌ เกิดข้อผิดพลาดในระบบ: ${error?.message || 'เชื่อมต่อล้มเหลว'}`
     });
   }
 }
